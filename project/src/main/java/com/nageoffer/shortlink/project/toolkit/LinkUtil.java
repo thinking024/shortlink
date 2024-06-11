@@ -43,7 +43,7 @@ public class LinkUtil {
     public static long getLinkCacheValidTime(Date validDate) {
         return Optional.ofNullable(validDate)
                 .map(each -> DateUtil.between(new Date(), each, DateUnit.MS))
-                .orElse(DEFAULT_CACHE_VALID_TIME);
+                .orElse(DEFAULT_CACHE_VALID_TIME); // 没有设置有效期的（即为永久有效），则在redis中设置默认的有效期
     }
 
     /**

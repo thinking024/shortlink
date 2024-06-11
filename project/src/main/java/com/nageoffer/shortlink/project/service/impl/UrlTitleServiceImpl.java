@@ -40,6 +40,7 @@ public class UrlTitleServiceImpl implements UrlTitleService {
         HttpURLConnection connection = (HttpURLConnection) targetUrl.openConnection();
         connection.setRequestMethod("GET");
         connection.connect();
+        // 后端通过jsoup请求原始链接地址，获得页面的title
         int responseCode = connection.getResponseCode();
         if (responseCode == HttpURLConnection.HTTP_OK) {
             Document document = Jsoup.connect(url).get();

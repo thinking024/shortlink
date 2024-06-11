@@ -29,7 +29,7 @@ public class RedisKeyConstant {
     public static final String GOTO_SHORT_LINK_KEY = "short-link:goto:%s";
 
     /**
-     * 短链接空值跳转前缀 Key
+     * 短链接空值跳转前缀 Key，空缓存，redis中有这个key，就代表它是无效的短链接，在数据库中不存在
      */
     public static final String GOTO_IS_NULL_SHORT_LINK_KEY = "short-link:is-null:goto_%s";
 

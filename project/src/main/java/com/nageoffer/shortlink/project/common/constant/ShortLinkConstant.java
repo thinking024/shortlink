@@ -30,6 +30,7 @@ public class ShortLinkConstant {
 
     /**
      * 高德获取地区接口地址
+     * 根据ip地址获取对应ip属地
      */
     public static final String AMAP_REMOTE_URL = "https://restapi.amap.com/v3/ip";
 }

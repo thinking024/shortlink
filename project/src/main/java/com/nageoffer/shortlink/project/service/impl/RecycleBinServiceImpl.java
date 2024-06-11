@@ -18,7 +18,6 @@
 package com.nageoffer.shortlink.project.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
@@ -56,9 +55,10 @@ public class RecycleBinServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLin
                 .eq(ShortLinkDO::getEnableStatus, 0)
                 .eq(ShortLinkDO::getDelFlag, 0);
         ShortLinkDO shortLinkDO = ShortLinkDO.builder()
-                .enableStatus(1)
+                .enableStatus(1) // 回收站通过enable status字段判断
                 .build();
         baseMapper.update(shortLinkDO, updateWrapper);
+        // 禁用链接（放入回收站）后，同时从redis中删除对应数据
         stringRedisTemplate.delete(String.format(GOTO_SHORT_LINK_KEY, requestParam.getFullShortUrl()));
     }
 
@@ -83,7 +83,9 @@ public class RecycleBinServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLin
                 .enableStatus(0)
                 .build();
         baseMapper.update(shortLinkDO, updateWrapper);
+        // 启用链接（从回收站恢复）后，从redis删除对应的空缓存结果
         stringRedisTemplate.delete(String.format(GOTO_IS_NULL_SHORT_LINK_KEY, requestParam.getFullShortUrl()));
+        // todo 启用后是否需要把它放入redis中，进行预热
     }
 
     @Override
@@ -97,7 +99,7 @@ public class RecycleBinServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLin
         ShortLinkDO delShortLinkDO = ShortLinkDO.builder()
                 .delTime(System.currentTimeMillis())
                 .build();
-        delShortLinkDO.setDelFlag(1);
+        delShortLinkDO.setDelFlag(1); // 从回收站中彻底删除，通过del flag逻辑删除实现
         baseMapper.update(delShortLinkDO, updateWrapper);
     }
 }

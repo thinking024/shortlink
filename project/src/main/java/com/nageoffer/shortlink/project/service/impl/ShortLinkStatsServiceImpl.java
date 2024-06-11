@@ -70,13 +70,13 @@ import java.util.concurrent.atomic.AtomicInteger;
 @RequiredArgsConstructor
 public class ShortLinkStatsServiceImpl implements ShortLinkStatsService {
 
-    private final LinkAccessStatsMapper linkAccessStatsMapper;
-    private final LinkLocaleStatsMapper linkLocaleStatsMapper;
-    private final LinkAccessLogsMapper linkAccessLogsMapper;
-    private final LinkBrowserStatsMapper linkBrowserStatsMapper;
-    private final LinkOsStatsMapper linkOsStatsMapper;
-    private final LinkDeviceStatsMapper linkDeviceStatsMapper;
-    private final LinkNetworkStatsMapper linkNetworkStatsMapper;
+    private final LinkAccessStatsMapper linkAccessStatsMapper; // 访问用户UV
+    private final LinkLocaleStatsMapper linkLocaleStatsMapper; // 访问地区
+    private final LinkAccessLogsMapper linkAccessLogsMapper; // 总日志
+    private final LinkBrowserStatsMapper linkBrowserStatsMapper; // 访问浏览器
+    private final LinkOsStatsMapper linkOsStatsMapper; // 访问的OS
+    private final LinkDeviceStatsMapper linkDeviceStatsMapper; // 访问的设备
+    private final LinkNetworkStatsMapper linkNetworkStatsMapper; // 访问的网络
 
     @Override
     public ShortLinkStatsRespDTO oneShortLinkStats(ShortLinkStatsReqDTO requestParam) {
