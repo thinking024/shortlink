@@ -131,8 +131,11 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
         if (userDO == null) {
             throw new ClientException("用户不存在");
         }
+
+        // 从redis中获取用户登录信息
         Map<Object, Object> hasLoginMap = stringRedisTemplate.opsForHash().entries(USER_LOGIN_KEY + requestParam.getUsername());
         if (CollUtil.isNotEmpty(hasLoginMap)) {
+            // 已登录，有用户登录信息，重置有效期为30min
             stringRedisTemplate.expire(USER_LOGIN_KEY + requestParam.getUsername(), 30L, TimeUnit.MINUTES);
             String token = hasLoginMap.keySet().stream()
                     .findFirst()
@@ -141,15 +144,17 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
             return new UserLoginRespDTO(token);
         }
         /**
-         * Hash
+         * 将登录用户信息存入Redis Hash
          * Key：login_用户名
          * Value：
-         *  Key：token标识
-         *  Val：JSON 字符串（用户信息）
+         *  Key：token标识，UUID，无实际含义，只是配合redis作为登录状态的标志而已；
+         *           并不像JWT那样存储有效的用户信息
+         *  Val：JSON 字符串（用户信息UserDO）
          */
         String uuid = UUID.randomUUID().toString();
         stringRedisTemplate.opsForHash().put(USER_LOGIN_KEY + requestParam.getUsername(), uuid, JSON.toJSONString(userDO));
         stringRedisTemplate.expire(USER_LOGIN_KEY + requestParam.getUsername(), 30L, TimeUnit.MINUTES);
+        // 用户操作认证见gateway中的filter类
         return new UserLoginRespDTO(uuid);
     }
 

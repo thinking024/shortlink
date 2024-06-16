@@ -31,7 +31,7 @@ import org.apache.ibatis.annotations.Param;
 public interface ShortLinkMapper extends BaseMapper<ShortLinkDO> {
 
     /**
-     * 短链接访问统计自增
+     * 短链接访问统计自增，sql语句见mapper xml文件
      */
     void incrementStats(@Param("gid") String gid,
                         @Param("fullShortUrl") String fullShortUrl,

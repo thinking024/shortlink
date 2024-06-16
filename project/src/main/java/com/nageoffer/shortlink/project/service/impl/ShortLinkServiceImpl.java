@@ -131,8 +131,8 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
                 .originUrl(requestParam.getOriginUrl())
                 .gid(requestParam.getGid())
                 .createdType(requestParam.getCreatedType())
-                .validDateType(requestParam.getValidDateType())
-                .validDate(requestParam.getValidDate())
+                .validDateType(requestParam.getValidDateType()) // 有效期类型：永久/非永久
+                .validDate(requestParam.getValidDate()) // 若永久有效，则过期时间=null
                 .describe(requestParam.getDescribe())
                 .shortUri(shortLinkSuffix)
                 .enableStatus(0)
@@ -303,7 +303,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
             RLock rLock = readWriteLock.writeLock();
             rLock.lock();
             try {
-                // 删除原有的短链接
+                // 逻辑删除原有的短链接
                 LambdaUpdateWrapper<ShortLinkDO> linkUpdateWrapper = Wrappers.lambdaUpdate(ShortLinkDO.class)
                         .eq(ShortLinkDO::getFullShortUrl, requestParam.getFullShortUrl())
                         .eq(ShortLinkDO::getGid, hasShortLinkDO.getGid())
@@ -348,16 +348,21 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
                 rLock.unlock();
             }
         }
-        // 取出的短链接，与前端传入的短链接必须一致
-        // 包括：短链接的有效期、短链接的原始链接
-        // 否则删除缓存
-        // 短链接如何保障缓存和数据库一致性？详情查看：https://nageoffer.com/shortlink/question
+
+        // 短链接更新后如何保障缓存和数据库一致性？详情查看：https://nageoffer.com/shortlink/question
+        // 取出的短链接，与前端传入的短链接必须一致 包括：短链接的有效期、短链接的原始链接
         if (!Objects.equals(hasShortLinkDO.getValidDateType(), requestParam.getValidDateType())
                 || !Objects.equals(hasShortLinkDO.getValidDate(), requestParam.getValidDate())
                 || !Objects.equals(hasShortLinkDO.getOriginUrl(), requestParam.getOriginUrl())) {
+
+            // 否则删除link对应的缓存
             stringRedisTemplate.delete(String.format(GOTO_SHORT_LINK_KEY, requestParam.getFullShortUrl()));
+
+            // 旧数据为非永久，且已过期
             if (hasShortLinkDO.getValidDate() != null && hasShortLinkDO.getValidDate().before(new Date())) {
-                // 修改后的新的有效期延长了，则删除此short link在redis中的空缓存
+
+                // 新数据永久有效，或未过期 代表修改后的新的有效期延长了
+                // 则删除此short link在redis中的空缓存
                 if (Objects.equals(requestParam.getValidDateType(), VailDateTypeEnum.PERMANENT.getType()) || requestParam.getValidDate().after(new Date())) {
                     stringRedisTemplate.delete(String.format(GOTO_IS_NULL_SHORT_LINK_KEY, requestParam.getFullShortUrl()));
                 }
@@ -409,7 +414,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
         String originalLink = stringRedisTemplate.opsForValue().get(String.format(GOTO_SHORT_LINK_KEY, fullShortUrl));
         // 在redis中存在，redis中对应key的有效期就是此链接的有效期，所有不用验证是否过期，直接返回
         if (StrUtil.isNotBlank(originalLink)) {
-            shortLinkStats(buildLinkStatsRecordAndSetUser(fullShortUrl, request, response));
+            shortLinkStats(buildLinkStatsRecordAndSetUser(fullShortUrl, request, response)); // 访问统计
             ((HttpServletResponse) response).sendRedirect(originalLink);
             return;
         }
@@ -439,7 +444,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
             // 类似于单例模式中的双重校验
             originalLink = stringRedisTemplate.opsForValue().get(String.format(GOTO_SHORT_LINK_KEY, fullShortUrl));
             if (StrUtil.isNotBlank(originalLink)) {
-                shortLinkStats(buildLinkStatsRecordAndSetUser(fullShortUrl, request, response));
+                shortLinkStats(buildLinkStatsRecordAndSetUser(fullShortUrl, request, response)); // 访问统计
                 ((HttpServletResponse) response).sendRedirect(originalLink);
                 return;
             }
@@ -489,37 +494,54 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
                     shortLinkDO.getOriginUrl(),
                     LinkUtil.getLinkCacheValidTime(shortLinkDO.getValidDate()), TimeUnit.MILLISECONDS
             );
-            shortLinkStats(buildLinkStatsRecordAndSetUser(fullShortUrl, request, response));
+            shortLinkStats(buildLinkStatsRecordAndSetUser(fullShortUrl, request, response)); // 访问统计
             ((HttpServletResponse) response).sendRedirect(shortLinkDO.getOriginUrl());
         } finally {
             lock.unlock();
         }
     }
 
+    /**
+     * 构建访问统计实体类
+     * @param fullShortUrl
+     * @param request
+     * @param response
+     * @return
+     */
     private ShortLinkStatsRecordDTO buildLinkStatsRecordAndSetUser(String fullShortUrl, ServletRequest request, ServletResponse response) {
         AtomicBoolean uvFirstFlag = new AtomicBoolean();
-        Cookie[] cookies = ((HttpServletRequest) request).getCookies();
+        Cookie[] cookies = ((HttpServletRequest) request).getCookies(); // 获取请求中的cookie
         AtomicReference<String> uv = new AtomicReference<>();
+
+        // 生成cookie的函数
+        // 下文中Arrays.stream要求必须为Runnable接口用于多线程操作，所以这里才这么写
         Runnable addResponseCookieTask = () -> {
-            uv.set(UUID.fastUUID().toString());
+            uv.set(UUID.fastUUID().toString()); // cookie内容：生成唯一的uuid
             Cookie uvCookie = new Cookie("uv", uv.get());
             uvCookie.setMaxAge(60 * 60 * 24 * 30);
-            uvCookie.setPath(StrUtil.sub(fullShortUrl, fullShortUrl.indexOf("/"), fullShortUrl.length()));
+            uvCookie.setPath(StrUtil.sub(fullShortUrl, fullShortUrl.indexOf("/"), fullShortUrl.length())); // cookie路径
             ((HttpServletResponse) response).addCookie(uvCookie);
             uvFirstFlag.set(Boolean.TRUE);
             stringRedisTemplate.opsForSet().add(SHORT_LINK_STATS_UV_KEY + fullShortUrl, uv.get());
         };
+
         if (ArrayUtil.isNotEmpty(cookies)) {
+            // 请求中有cookie
             Arrays.stream(cookies)
-                    .filter(each -> Objects.equals(each.getName(), "uv"))
+                    .filter(each -> Objects.equals(each.getName(), "uv")) // 获取其中名字为uv的项
                     .findFirst()
                     .map(Cookie::getValue)
-                    .ifPresentOrElse(each -> {
+                    .ifPresentOrElse(each -> { // 有uv的cookie，执行lambda表达式中的内容
                         uv.set(each);
+                        // 通过redis判断是否为第一次访问
+                        // 将短链接放入redis，key：某条短链接地址，value：uv cookie的set集合，即访问用户的集合
+                        // redis中没有该uv的uuid，则添加成功，返回uvAdded不为空，将flag设为true
+                        // redis中已有该uv，则添加失败，代表之前该uv已经统计过，并非第一次访问
                         Long uvAdded = stringRedisTemplate.opsForSet().add(SHORT_LINK_STATS_UV_KEY + fullShortUrl, each);
                         uvFirstFlag.set(uvAdded != null && uvAdded > 0L);
-                    }, addResponseCookieTask);
+                    }, addResponseCookieTask); // 无uv的cookie，则调用runnable接口，添加cookie
         } else {
+            // 请求中无cookie，则添加，直接执行run函数，不会产生多线程
             addResponseCookieTask.run();
         }
         String remoteAddr = LinkUtil.getActualIp(((HttpServletRequest) request));
@@ -527,7 +549,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
         String browser = LinkUtil.getBrowser(((HttpServletRequest) request));
         String device = LinkUtil.getDevice(((HttpServletRequest) request));
         String network = LinkUtil.getNetwork(((HttpServletRequest) request));
-        Long uipAdded = stringRedisTemplate.opsForSet().add(SHORT_LINK_STATS_UIP_KEY + fullShortUrl, remoteAddr);
+        Long uipAdded = stringRedisTemplate.opsForSet().add(SHORT_LINK_STATS_UIP_KEY + fullShortUrl, remoteAddr); // 将访问ip放入redis中
         boolean uipFirstFlag = uipAdded != null && uipAdded > 0L;
         return ShortLinkStatsRecordDTO.builder()
                 .fullShortUrl(fullShortUrl)
@@ -543,7 +565,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
     }
 
     /**
-     * 用于restoreURL函数中访问链接时调用，统计信息
+     * 处理统计信息，用于restoreURL函数中访问链接时调用
      * @param statsRecord 短链接统计实体参数
      */
     @Override
@@ -627,6 +649,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
 
     private void verificationWhitelist(String originUrl) {
         Boolean enable = gotoDomainWhiteListConfiguration.getEnable();
+        // 未开启白名单，直接放行
         if (enable == null || !enable) {
             return;
         }
@@ -635,6 +658,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
             throw new ClientException("跳转链接填写错误");
         }
         List<String> details = gotoDomainWhiteListConfiguration.getDetails();
+        // 待跳转的原始链接的域名不再白名单内，抛出异常
         if (!details.contains(domain)) {
             throw new ClientException("演示环境为避免恶意攻击，请生成以下网站跳转链接：" + gotoDomainWhiteListConfiguration.getNames());
         }

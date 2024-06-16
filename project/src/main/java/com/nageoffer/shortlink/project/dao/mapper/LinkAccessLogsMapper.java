@@ -60,7 +60,7 @@ public interface LinkAccessLogsMapper extends BaseMapper<LinkAccessLogsDO> {
     List<HashMap<String, Object>> listTopIpByShortLink(@Param("param") ShortLinkStatsReqDTO requestParam);
 
     /**
-     * 根据分组获取指定日期内高频访问IP数据
+     * 根据分组获取指定日期内前5个高频访问IP数据
      */
     @Select("SELECT " +
             "    tlal.ip, " +

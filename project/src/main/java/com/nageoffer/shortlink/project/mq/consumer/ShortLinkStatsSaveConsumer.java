@@ -124,13 +124,17 @@ public class ShortLinkStatsSaveConsumer implements StreamListener<String, MapRec
         RLock rLock = readWriteLock.readLock();
         rLock.lock();
         try {
+            // 从goto表中查找出gid
             LambdaQueryWrapper<ShortLinkGotoDO> queryWrapper = Wrappers.lambdaQuery(ShortLinkGotoDO.class)
                     .eq(ShortLinkGotoDO::getFullShortUrl, fullShortUrl);
             ShortLinkGotoDO shortLinkGotoDO = shortLinkGotoMapper.selectOne(queryWrapper);
             String gid = shortLinkGotoDO.getGid();
+
+            // 当前时间
             int hour = DateUtil.hour(new Date(), true);
             Week week = DateUtil.dayOfWeekEnum(new Date());
             int weekValue = week.getIso8601Value();
+            // 1. 插入/更新 记录总表 access stats
             LinkAccessStatsDO linkAccessStatsDO = LinkAccessStatsDO.builder()
                     .pv(1)
                     .uv(statsRecord.getUvFirstFlag() ? 1 : 0)
@@ -141,6 +145,8 @@ public class ShortLinkStatsSaveConsumer implements StreamListener<String, MapRec
                     .date(new Date())
                     .build();
             linkAccessStatsMapper.shortLinkStats(linkAccessStatsDO);
+
+            // 高德地图根据ip获取地理位置
             Map<String, Object> localeParamMap = new HashMap<>();
             localeParamMap.put("key", statsLocaleAmapKey);
             localeParamMap.put("ip", statsRecord.getRemoteAddr());
@@ -149,6 +155,8 @@ public class ShortLinkStatsSaveConsumer implements StreamListener<String, MapRec
             String infoCode = localeResultObj.getString("infocode");
             String actualProvince = "未知";
             String actualCity = "未知";
+
+            // 2. 插入/更新 地理位置表 local stats
             if (StrUtil.isNotBlank(infoCode) && StrUtil.equals(infoCode, "10000")) {
                 String province = localeResultObj.getString("province");
                 boolean unknownFlag = StrUtil.equals(province, "[]");
@@ -163,6 +171,8 @@ public class ShortLinkStatsSaveConsumer implements StreamListener<String, MapRec
                         .build();
                 linkLocaleStatsMapper.shortLinkLocaleState(linkLocaleStatsDO);
             }
+
+            // 3. 插入/更新 OS表 os stats
             LinkOsStatsDO linkOsStatsDO = LinkOsStatsDO.builder()
                     .os(statsRecord.getOs())
                     .cnt(1)
@@ -170,6 +180,8 @@ public class ShortLinkStatsSaveConsumer implements StreamListener<String, MapRec
                     .date(new Date())
                     .build();
             linkOsStatsMapper.shortLinkOsState(linkOsStatsDO);
+
+            //4. 插入/更新 浏览器表 browser stats
             LinkBrowserStatsDO linkBrowserStatsDO = LinkBrowserStatsDO.builder()
                     .browser(statsRecord.getBrowser())
                     .cnt(1)
@@ -177,6 +189,8 @@ public class ShortLinkStatsSaveConsumer implements StreamListener<String, MapRec
                     .date(new Date())
                     .build();
             linkBrowserStatsMapper.shortLinkBrowserState(linkBrowserStatsDO);
+
+            // 5. 插入/更新 设备表 device stats
             LinkDeviceStatsDO linkDeviceStatsDO = LinkDeviceStatsDO.builder()
                     .device(statsRecord.getDevice())
                     .cnt(1)
@@ -184,6 +198,8 @@ public class ShortLinkStatsSaveConsumer implements StreamListener<String, MapRec
                     .date(new Date())
                     .build();
             linkDeviceStatsMapper.shortLinkDeviceState(linkDeviceStatsDO);
+
+            // 6. 插入/更新 网络表 network stats
             LinkNetworkStatsDO linkNetworkStatsDO = LinkNetworkStatsDO.builder()
                     .network(statsRecord.getNetwork())
                     .cnt(1)
@@ -191,6 +207,8 @@ public class ShortLinkStatsSaveConsumer implements StreamListener<String, MapRec
                     .date(new Date())
                     .build();
             linkNetworkStatsMapper.shortLinkNetworkState(linkNetworkStatsDO);
+
+            // 7. 插入 访问记录表 logs
             LinkAccessLogsDO linkAccessLogsDO = LinkAccessLogsDO.builder()
                     .user(statsRecord.getUv())
                     .ip(statsRecord.getRemoteAddr())
@@ -201,8 +219,12 @@ public class ShortLinkStatsSaveConsumer implements StreamListener<String, MapRec
                     .locale(StrUtil.join("-", "中国", actualProvince, actualCity))
                     .fullShortUrl(fullShortUrl)
                     .build();
-            linkAccessLogsMapper.insert(linkAccessLogsDO);
+            linkAccessLogsMapper.insert(linkAccessLogsDO); // 访问一次就会插入一条log
+
+            // 8. 更新 短链接表 short link的总pv、uv数量
             shortLinkMapper.incrementStats(gid, fullShortUrl, 1, statsRecord.getUvFirstFlag() ? 1 : 0, statsRecord.getUipFirstFlag() ? 1 : 0);
+
+            // 9. 插入/更新 今日记录表 today
             LinkStatsTodayDO linkStatsTodayDO = LinkStatsTodayDO.builder()
                     .todayPv(1)
                     .todayUv(statsRecord.getUvFirstFlag() ? 1 : 0)

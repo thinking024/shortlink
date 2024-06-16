@@ -29,7 +29,7 @@ import java.util.List;
  */
 @Data
 @Component
-@ConfigurationProperties(prefix = "short-link.goto-domain.white-list")
+@ConfigurationProperties(value = "short-link.goto-domain.white-list") // 域名白名单配置，见application.yaml
 public class GotoDomainWhiteListConfiguration {
 
     /**
