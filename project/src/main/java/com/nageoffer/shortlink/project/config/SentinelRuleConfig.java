@@ -30,16 +30,20 @@ import java.util.List;
  * 初始化限流配置
  * 公众号：马丁玩编程，回复：加群，添加马哥微信（备注：link）获取项目资料
  */
+// component类注解，直接取SentinelRuleConfig作为bean
+// autoconfiguration注解，则是通过bean的方法注解，返回bean对象
 @Component
 public class SentinelRuleConfig implements InitializingBean {
 
     @Override
     public void afterPropertiesSet() throws Exception {
         List<FlowRule> rules = new ArrayList<>();
+
         FlowRule createOrderRule = new FlowRule();
-        createOrderRule.setResource("create_short-link");
-        createOrderRule.setGrade(RuleConstant.FLOW_GRADE_QPS);
-        createOrderRule.setCount(1);
+        createOrderRule.setResource("create_short-link"); // 需要限流的资源名称为create_short-link，见创建链接的controller
+        createOrderRule.setGrade(RuleConstant.FLOW_GRADE_QPS); // 以qps作为限流标准
+        createOrderRule.setCount(1); // qps=1
+
         rules.add(createOrderRule);
         FlowRuleManager.loadRules(rules);
     }

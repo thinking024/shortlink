@@ -40,12 +40,13 @@ public class UserConfiguration {
         FilterRegistrationBean<UserTransmitFilter> registration = new FilterRegistrationBean<>();
         registration.setFilter(new UserTransmitFilter());
         registration.addUrlPatterns("/*");
+        // 多个过滤器有不同优先级，数字越小级别越高
         registration.setOrder(0);
         return registration;
     }
 
     /**
-     * 用户操作流量风控过滤器
+     * 用户操作流量风控过滤器，条件变量：yaml配置中short-link.flow-limit.enable=true时才启用
      */
     @Bean
     @ConditionalOnProperty(name = "short-link.flow-limit.enable", havingValue = "true")

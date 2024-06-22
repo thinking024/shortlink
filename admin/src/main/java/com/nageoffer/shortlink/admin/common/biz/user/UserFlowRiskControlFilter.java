@@ -58,6 +58,9 @@ public class UserFlowRiskControlFilter implements Filter {
     @SneakyThrows
     @Override
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain filterChain) throws IOException, ServletException {
+        // 创建脚本，保证原子性执行自增操作
+        // key：用户名称；value：操作次数的统计；给key设置过期时间，用于限制用户在一定时间内的操作次数
+        // 用户操作一次就+1，超出限制就拒绝
         DefaultRedisScript<Long> redisScript = new DefaultRedisScript<>();
         redisScript.setScriptSource(new ResourceScriptSource(new ClassPathResource(USER_FLOW_RISK_CONTROL_LUA_SCRIPT_PATH)));
         redisScript.setResultType(Long.class);
@@ -74,6 +77,7 @@ public class UserFlowRiskControlFilter implements Filter {
             returnJson((HttpServletResponse) response, JSON.toJSONString(Results.failure(new ClientException(FLOW_LIMIT_ERROR))));
             return;
         }
+        // 责任链，传给下一个过滤器
         filterChain.doFilter(request, response);
     }
 

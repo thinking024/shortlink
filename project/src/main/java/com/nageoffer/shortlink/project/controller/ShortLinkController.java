@@ -67,6 +67,9 @@ public class ShortLinkController {
      * 创建短链接
      */
     @PostMapping("/api/short-link/v1/create")
+    // sentinel限流
+    // 需要保护的资源名称：create_short-link，同sentinel config保持一致
+    // block handler：熔断后的降级规则，需要给出自定义降级规则的类名，与处理降级的方法名
     @SentinelResource(
             value = "create_short-link",
             blockHandler = "createShortLinkBlockHandlerMethod",

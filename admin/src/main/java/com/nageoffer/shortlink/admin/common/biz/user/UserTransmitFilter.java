@@ -35,6 +35,7 @@ public class UserTransmitFilter implements Filter {
     @SneakyThrows
     @Override
     public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain) {
+        // 身份验证的功能放在网关处，这里只提取用户信息放入thread local中
         HttpServletRequest httpServletRequest = (HttpServletRequest) servletRequest;
         // 从request中获取用户信息
         String username = httpServletRequest.getHeader("username");
