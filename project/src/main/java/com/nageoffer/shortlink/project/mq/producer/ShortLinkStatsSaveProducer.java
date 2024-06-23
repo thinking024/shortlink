@@ -41,6 +41,7 @@ public class ShortLinkStatsSaveProducer {
      */
     public void send(Map<String, String> producerMap) {
         // 使用redis中的stream实现消息队列
+        // 执行xadd stream_key * message_key message_value的指令
         stringRedisTemplate.opsForStream().add(SHORT_LINK_STATS_STREAM_TOPIC_KEY, producerMap);
     }
 }

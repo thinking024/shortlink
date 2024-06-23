@@ -37,14 +37,19 @@ public class MessageQueueIdempotentHandler {
     private static final String IDEMPOTENT_KEY_PREFIX = "short-link:idempotent:";
 
     /**
-     * 判断当前消息是否消费过
+     * 判断当前消息是否能消费
      *
      * @param messageId 消息唯一标识
-     * @return 消息是否消费过
+     * @return True，如果消息之前未被消费过
      */
-    public boolean isMessageProcessed(String messageId) {
+    public boolean ableToProcessed(String messageId) {
         String key = IDEMPOTENT_KEY_PREFIX + messageId;
-        return Boolean.TRUE.equals(stringRedisTemplate.opsForValue().setIfAbsent(key, "0", 2, TimeUnit.MINUTES));
+        // 消息id作为key放入redis，作为 预消费标识符号
+        // 若放入前key不存在，则返回true，并设置value为“0”，代表 准备开始消费
+        // 若存在，返回false，代表 之前已经有人消费过了
+        // 设置2min过期时间，防止没完成消费，但是又没删标识的情况；同时避免长时间的key积压在内存中
+        Boolean result = stringRedisTemplate.opsForValue().setIfAbsent(key, "0", 2, TimeUnit.MINUTES);
+        return Boolean.TRUE.equals(result);
     }
 
     /**
@@ -65,7 +70,7 @@ public class MessageQueueIdempotentHandler {
      */
     public void setAccomplish(String messageId) {
         String key = IDEMPOTENT_KEY_PREFIX + messageId;
-        stringRedisTemplate.opsForValue().set(key, "1", 2, TimeUnit.MINUTES);
+        stringRedisTemplate.opsForValue().set(key, "1", 2, TimeUnit.MINUTES); // 将value设为“2”，代表已消费完
     }
 
     /**

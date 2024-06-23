@@ -571,6 +571,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
     @Override
     public void shortLinkStats(ShortLinkStatsRecordDTO statsRecord) {
         // 并不是实时统计，而是通过消息队列改为延迟任务
+        // 待写入的数据以k-v形式传递
         Map<String, String> producerMap = new HashMap<>();
         producerMap.put("statsRecord", JSON.toJSONString(statsRecord));
         // 消息队列为什么选用RocketMQ？详情查看：https://nageoffer.com/shortlink/question

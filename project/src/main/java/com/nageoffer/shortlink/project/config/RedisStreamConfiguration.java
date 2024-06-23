@@ -49,15 +49,17 @@ public class RedisStreamConfiguration {
     private final RedisConnectionFactory redisConnectionFactory;
     private final ShortLinkStatsSaveConsumer shortLinkStatsSaveConsumer;
 
+    // 通过spring创建线程池，用于stream消息队列
     @Bean
     public ExecutorService asyncStreamConsumer() {
         AtomicInteger index = new AtomicInteger();
         int processors = Runtime.getRuntime().availableProcessors();
         return new ThreadPoolExecutor(processors,
-                processors + processors >> 1,
+                processors + processors >> 1, // 右移一位=除以2
                 60,
                 TimeUnit.SECONDS,
                 new LinkedBlockingQueue<>(),
+                // ThreadFactory，自定义线程创建的方式，给每个线程设置名字
                 runnable -> {
                     Thread thread = new Thread(runnable);
                     thread.setName("stream_consumer_short-link_stats_" + index.incrementAndGet());
@@ -67,6 +69,7 @@ public class RedisStreamConfiguration {
         );
     }
 
+    // 消息队列监听配置
     @Bean(initMethod = "start", destroyMethod = "stop")
     public StreamMessageListenerContainer<String, MapRecord<String, String, String>> streamMessageListenerContainer(ExecutorService asyncStreamConsumer) {
         StreamMessageListenerContainer.StreamMessageListenerContainerOptions<String, MapRecord<String, String, String>> options =
@@ -79,8 +82,11 @@ public class RedisStreamConfiguration {
                         // 如果没有拉取到消息，需要阻塞的时间。不能大于 ${spring.data.redis.timeout}，否则会超时
                         .pollTimeout(Duration.ofSeconds(3))
                         .build();
+
+        // 创建监听容器
         StreamMessageListenerContainer<String, MapRecord<String, String, String>> streamMessageListenerContainer =
                 StreamMessageListenerContainer.create(redisConnectionFactory, options);
+        // 消息ack机制
         streamMessageListenerContainer.receiveAutoAck(Consumer.from(SHORT_LINK_STATS_STREAM_GROUP_KEY, "stats-consumer"),
                 StreamOffset.create(SHORT_LINK_STATS_STREAM_TOPIC_KEY, ReadOffset.lastConsumed()), shortLinkStatsSaveConsumer);
         return streamMessageListenerContainer;
