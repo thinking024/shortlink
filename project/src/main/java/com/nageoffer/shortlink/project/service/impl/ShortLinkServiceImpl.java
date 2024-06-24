@@ -153,8 +153,9 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
             // 短链接数据库分片键是如何考虑的？详情查看：https://nageoffer.com/shortlink/question
             shortLinkGotoMapper.insert(linkGotoDO);
         } catch (DuplicateKeyException ex) { // 数据库中存在重复的短链接，抛出异常
-            // 证明多线程同时插入了两个相同的短链接
-            // 将此短链接加入布隆过滤器
+            // 布隆过滤器可以通过redis持久化
+            // 但是有可能短链接a生成后插入数据库，但是布隆过滤器没有通过redis持久化
+            // 后续又生成了重复的链接a，此时它可以通过布隆过滤器，但是会在插入数据库的时候报错
             if (!shortUriCreateCachePenetrationBloomFilter.contains(fullShortUrl)) {
                 shortUriCreateCachePenetrationBloomFilter.add(fullShortUrl);
             }
@@ -441,7 +442,8 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
         lock.lock();
         try {
             // 同样执行前面redis中的操作，进行双重校验操作
-            // 类似于单例模式中的双重校验
+            // 第一个请求进入分布式锁，去redis查询没有，然后去db查，查完写入redis
+            // 后续的请求再进入分布式锁，直接在redis中就能查到，不用再去db
             originalLink = stringRedisTemplate.opsForValue().get(String.format(GOTO_SHORT_LINK_KEY, fullShortUrl));
             if (StrUtil.isNotBlank(originalLink)) {
                 shortLinkStats(buildLinkStatsRecordAndSetUser(fullShortUrl, request, response)); // 访问统计
@@ -593,6 +595,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
             shorUri = HashUtil.hashToBase62(originUrl);
             // 判断短链接是否存在为什么不使用Set结构？详情查看：https://nageoffer.com/shortlink/question
             // 如果布隆过滤器挂了，里边存的数据全丢失了，怎么恢复呢？详情查看：https://nageoffer.com/shortlink/question
+
             // 同时使用布隆过滤器判断生成的短链接是否已存在
             // 若已存在，则继续循环生成
             if (!shortUriCreateCachePenetrationBloomFilter.contains(createShortLinkDefaultDomain + "/" + shorUri)) {
