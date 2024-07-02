@@ -35,6 +35,7 @@ import com.nageoffer.shortlink.project.common.enums.VailDateTypeEnum;
 import com.nageoffer.shortlink.project.config.GotoDomainWhiteListConfiguration;
 import com.nageoffer.shortlink.project.dao.entity.ShortLinkDO;
 import com.nageoffer.shortlink.project.dao.entity.ShortLinkGotoDO;
+import com.nageoffer.shortlink.project.dao.mapper.LinkGroupMapper;
 import com.nageoffer.shortlink.project.dao.mapper.ShortLinkGotoMapper;
 import com.nageoffer.shortlink.project.dao.mapper.ShortLinkMapper;
 import com.nageoffer.shortlink.project.dto.biz.ShortLinkStatsRecordDTO;
@@ -154,13 +155,15 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
             shortLinkGotoMapper.insert(linkGotoDO);
         } catch (DuplicateKeyException ex) { // 数据库中存在重复的短链接，抛出异常
             // 布隆过滤器可以通过redis持久化
-            // 但是有可能短链接a生成后插入数据库，但是布隆过滤器没有通过redis持久化
-            // 后续又生成了重复的链接a，此时它可以通过布隆过滤器，但是会在插入数据库的时候报错
+            // 但是有可能短链接a生成后插入数据库，但是布隆过滤器没有通过redis持久化，挂了，里面的数据全丢
+            // 后续又生成了重复的链接a，此时它可以通过布隆过滤器，但是会在插入数据库的时候报错，有兜底保证
+            // 兜底后再把它放入布隆过滤器中
             if (!shortUriCreateCachePenetrationBloomFilter.contains(fullShortUrl)) {
                 shortUriCreateCachePenetrationBloomFilter.add(fullShortUrl);
             }
             throw new ServiceException(String.format("短链接：%s 生成重复", fullShortUrl));
         }
+
         // 项目中短链接缓存预热是怎么做的？详情查看：https://nageoffer.com/shortlink/question
         // 生成短链接后插入redis，进行缓存预热
         // redis中的有效期=此链接的有效期
@@ -185,8 +188,10 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
         String fullShortUrl;
         // 为什么说布隆过滤器性能远胜于分布式锁？详情查看：https://nageoffer.com/shortlink/question
         // redisson分布式锁，防止多个请求，恰好生成了相同的短链接
+        // 不加锁则会在生成后插入db时抛出唯一索引异常，这时候要再重新生成一次，再去查db，多了一次IO
         RLock lock = redissonClient.getLock(SHORT_LINK_CREATE_LOCK_KEY);
         lock.lock();
+        // 锁住生成link+去db中查询是否存在+插入db的全过程
         try {
             String shortLinkSuffix = generateSuffixByLock(requestParam);
             fullShortUrl = StrBuilder.create(createShortLinkDefaultDomain)
@@ -277,8 +282,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
             throw new ClientException("短链接记录不存在");
         }
         if (Objects.equals(hasShortLinkDO.getGid(), requestParam.getGid())) {
-            // 查询到的短链接必须是当前用户创建的短链接，即gid一致
-            // 因为有可能多个用户，对同一个link创建了不同的短链接，它们应该分属不同的group
+            // 修改后的短链接分组不变，只需动link表即可
             LambdaUpdateWrapper<ShortLinkDO> updateWrapper = Wrappers.lambdaUpdate(ShortLinkDO.class)
                     .eq(ShortLinkDO::getFullShortUrl, requestParam.getFullShortUrl())
                     .eq(ShortLinkDO::getGid, requestParam.getGid())
@@ -298,13 +302,17 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
                     .build();
             baseMapper.update(shortLinkDO, updateWrapper);
         } else {
+            // 修改了原链接的分组gid，则需要一并修改包含gid字段的link表，goto表
+
             // 如果短链接正在修改分组，这时有用户正在访问短链接，需要引入redis的写锁
-            // 为什么监控表要加上Gid？不加的话是否就不存在读写锁？详情查看：https://nageoffer.com/shortlink/question
+            // 因为监控功能incrementStats中也使用到了gid字段
             RReadWriteLock readWriteLock = redissonClient.getReadWriteLock(String.format(LOCK_GID_UPDATE_KEY, requestParam.getFullShortUrl()));
             RLock rLock = readWriteLock.writeLock();
             rLock.lock();
             try {
                 // 逻辑删除原有的短链接
+                // 如果直接在原来的短链接上修改字段，则gid虽然变了，但是还是在原来分到的link表中
+                // 应该按新的gid重新hash分片
                 LambdaUpdateWrapper<ShortLinkDO> linkUpdateWrapper = Wrappers.lambdaUpdate(ShortLinkDO.class)
                         .eq(ShortLinkDO::getFullShortUrl, requestParam.getFullShortUrl())
                         .eq(ShortLinkDO::getGid, hasShortLinkDO.getGid())
@@ -359,10 +367,11 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
             // 否则删除link对应的缓存
             stringRedisTemplate.delete(String.format(GOTO_SHORT_LINK_KEY, requestParam.getFullShortUrl()));
 
-            // 旧数据为非永久，且已过期
-            if (hasShortLinkDO.getValidDate() != null && hasShortLinkDO.getValidDate().before(new Date())) {
+            // DB中的旧数据为非永久，且已过期
+            Date currentDate = new Date();
+            if (hasShortLinkDO.getValidDate() != null && hasShortLinkDO.getValidDate().before(currentDate)) {
 
-                // 新数据永久有效，或未过期 代表修改后的新的有效期延长了
+                // 修改后的新数据永久有效，或未过期 代表修改后的新的有效期延长了
                 // 则删除此short link在redis中的空缓存
                 if (Objects.equals(requestParam.getValidDateType(), VailDateTypeEnum.PERMANENT.getType()) || requestParam.getValidDate().after(new Date())) {
                     stringRedisTemplate.delete(String.format(GOTO_IS_NULL_SHORT_LINK_KEY, requestParam.getFullShortUrl()));
@@ -394,6 +403,12 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
         return BeanUtil.copyToList(shortLinkDOList, ShortLinkGroupCountQueryRespDTO.class);
     }
 
+    /**
+     * 跳转短链接
+     * @param shortUri 短链接后缀
+     * @param request  HTTP 请求
+     * @param response HTTP 响应
+     */
     @SneakyThrows
     @Override
     public void restoreUrl(String shortUri, ServletRequest request, ServletResponse response) {
@@ -563,6 +578,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
                 .browser(browser)
                 .device(device)
                 .network(network)
+                .currentDate(new Date())
                 .build();
     }
 
@@ -617,6 +633,8 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
             originUrl += UUID.randomUUID().toString();
             // 短链接哈希算法生成冲突问题如何解决？详情查看：https://nageoffer.com/shortlink/question
             shorUri = HashUtil.hashToBase62(originUrl);
+
+            // 生成后去db中查询是否存在重复的
             LambdaQueryWrapper<ShortLinkDO> queryWrapper = Wrappers.lambdaQuery(ShortLinkDO.class)
                     .eq(ShortLinkDO::getGid, requestParam.getGid())
                     .eq(ShortLinkDO::getFullShortUrl, createShortLinkDefaultDomain + "/" + shorUri)

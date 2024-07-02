@@ -24,7 +24,7 @@ import org.springframework.context.annotation.Configuration;
 
 /**
  * 布隆过滤器配置
- * 避免每次去redis/db中查询用户名是否存在，导致缓存穿透
+ * 避免每次去db中查询 用户名/gid 是否存在
  */
 @Configuration(value = "rBloomFilterConfigurationByAdmin")
 public class RBloomFilterConfiguration {
@@ -37,6 +37,16 @@ public class RBloomFilterConfiguration {
         RBloomFilter<String> cachePenetrationBloomFilter = redissonClient.getBloomFilter("userRegisterCachePenetrationBloomFilter");
         // 预估布隆过滤器存储的元素长度，运行的误判率
         cachePenetrationBloomFilter.tryInit(100000000L, 0.001);
+        return cachePenetrationBloomFilter;
+    }
+
+    /**
+     * 防止分组标识注册查询数据库的布隆过滤器
+     */
+    @Bean
+    public RBloomFilter<String> gidRegisterCachePenetrationBloomFilter(RedissonClient redissonClient) {
+        RBloomFilter<String> cachePenetrationBloomFilter = redissonClient.getBloomFilter("gidRegisterCachePenetrationBloomFilter");
+        cachePenetrationBloomFilter.tryInit(200000000L, 0.001);
         return cachePenetrationBloomFilter;
     }
 }

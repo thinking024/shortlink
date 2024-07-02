@@ -1,3 +1,6 @@
+-- group表以username作为分片key，`gid`作为unique key
+-- 但是不同用户的gid可能会被分到不同的表中，unique key无法保证唯一
+-- 因此额外引入group_unique表
 CREATE TABLE `t_group_0`
 (
     `id`          bigint(20) NOT NULL AUTO_INCREMENT COMMENT 'ID',
@@ -9,7 +12,7 @@ CREATE TABLE `t_group_0`
     `update_time` datetime     DEFAULT NULL COMMENT '修改时间',
     `del_flag`    tinyint(1) DEFAULT NULL COMMENT '删除标识 0：未删除 1：已删除',
     PRIMARY KEY (`id`),
-    UNIQUE KEY `idx_unique_username_gid` (`gid`,`username`) USING BTREE
+    UNIQUE KEY `idx_unique_username_gid` (`gid`) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE `t_group_1`
@@ -23,7 +26,7 @@ CREATE TABLE `t_group_1`
     `update_time` datetime     DEFAULT NULL COMMENT '修改时间',
     `del_flag`    tinyint(1) DEFAULT NULL COMMENT '删除标识 0：未删除 1：已删除',
     PRIMARY KEY (`id`),
-    UNIQUE KEY `idx_unique_username_gid` (`gid`,`username`) USING BTREE
+    UNIQUE KEY `idx_unique_username_gid` (`gid`) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE `t_group_10`
@@ -37,7 +40,7 @@ CREATE TABLE `t_group_10`
     `update_time` datetime     DEFAULT NULL COMMENT '修改时间',
     `del_flag`    tinyint(1) DEFAULT NULL COMMENT '删除标识 0：未删除 1：已删除',
     PRIMARY KEY (`id`),
-    UNIQUE KEY `idx_unique_username_gid` (`gid`,`username`) USING BTREE
+    UNIQUE KEY `idx_unique_username_gid` (`gid`) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE `t_group_11`
@@ -51,7 +54,7 @@ CREATE TABLE `t_group_11`
     `update_time` datetime     DEFAULT NULL COMMENT '修改时间',
     `del_flag`    tinyint(1) DEFAULT NULL COMMENT '删除标识 0：未删除 1：已删除',
     PRIMARY KEY (`id`),
-    UNIQUE KEY `idx_unique_username_gid` (`gid`,`username`) USING BTREE
+    UNIQUE KEY `idx_unique_username_gid` (`gid`) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE `t_group_12`
@@ -65,7 +68,7 @@ CREATE TABLE `t_group_12`
     `update_time` datetime     DEFAULT NULL COMMENT '修改时间',
     `del_flag`    tinyint(1) DEFAULT NULL COMMENT '删除标识 0：未删除 1：已删除',
     PRIMARY KEY (`id`),
-    UNIQUE KEY `idx_unique_username_gid` (`gid`,`username`) USING BTREE
+    UNIQUE KEY `idx_unique_username_gid` (`gid`) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE `t_group_13`
@@ -79,7 +82,7 @@ CREATE TABLE `t_group_13`
     `update_time` datetime     DEFAULT NULL COMMENT '修改时间',
     `del_flag`    tinyint(1) DEFAULT NULL COMMENT '删除标识 0：未删除 1：已删除',
     PRIMARY KEY (`id`),
-    UNIQUE KEY `idx_unique_username_gid` (`gid`,`username`) USING BTREE
+    UNIQUE KEY `idx_unique_username_gid` (`gid`) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE `t_group_14`
@@ -93,7 +96,7 @@ CREATE TABLE `t_group_14`
     `update_time` datetime     DEFAULT NULL COMMENT '修改时间',
     `del_flag`    tinyint(1) DEFAULT NULL COMMENT '删除标识 0：未删除 1：已删除',
     PRIMARY KEY (`id`),
-    UNIQUE KEY `idx_unique_username_gid` (`gid`,`username`) USING BTREE
+    UNIQUE KEY `idx_unique_username_gid` (`gid`) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE `t_group_15`
@@ -107,7 +110,7 @@ CREATE TABLE `t_group_15`
     `update_time` datetime     DEFAULT NULL COMMENT '修改时间',
     `del_flag`    tinyint(1) DEFAULT NULL COMMENT '删除标识 0：未删除 1：已删除',
     PRIMARY KEY (`id`),
-    UNIQUE KEY `idx_unique_username_gid` (`gid`,`username`) USING BTREE
+    UNIQUE KEY `idx_unique_username_gid` (`gid`) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE `t_group_2`
@@ -121,7 +124,7 @@ CREATE TABLE `t_group_2`
     `update_time` datetime     DEFAULT NULL COMMENT '修改时间',
     `del_flag`    tinyint(1) DEFAULT NULL COMMENT '删除标识 0：未删除 1：已删除',
     PRIMARY KEY (`id`),
-    UNIQUE KEY `idx_unique_username_gid` (`gid`,`username`) USING BTREE
+    UNIQUE KEY `idx_unique_username_gid` (`gid`) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE `t_group_3`
@@ -135,7 +138,7 @@ CREATE TABLE `t_group_3`
     `update_time` datetime     DEFAULT NULL COMMENT '修改时间',
     `del_flag`    tinyint(1) DEFAULT NULL COMMENT '删除标识 0：未删除 1：已删除',
     PRIMARY KEY (`id`),
-    UNIQUE KEY `idx_unique_username_gid` (`gid`,`username`) USING BTREE
+    UNIQUE KEY `idx_unique_username_gid` (`gid`) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE `t_group_4`
@@ -149,7 +152,7 @@ CREATE TABLE `t_group_4`
     `update_time` datetime     DEFAULT NULL COMMENT '修改时间',
     `del_flag`    tinyint(1) DEFAULT NULL COMMENT '删除标识 0：未删除 1：已删除',
     PRIMARY KEY (`id`),
-    UNIQUE KEY `idx_unique_username_gid` (`gid`,`username`) USING BTREE
+    UNIQUE KEY `idx_unique_username_gid` (`gid`) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE `t_group_5`
@@ -163,7 +166,7 @@ CREATE TABLE `t_group_5`
     `update_time` datetime     DEFAULT NULL COMMENT '修改时间',
     `del_flag`    tinyint(1) DEFAULT NULL COMMENT '删除标识 0：未删除 1：已删除',
     PRIMARY KEY (`id`),
-    UNIQUE KEY `idx_unique_username_gid` (`gid`,`username`) USING BTREE
+    UNIQUE KEY `idx_unique_username_gid` (`gid`) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE `t_group_6`
@@ -177,7 +180,7 @@ CREATE TABLE `t_group_6`
     `update_time` datetime     DEFAULT NULL COMMENT '修改时间',
     `del_flag`    tinyint(1) DEFAULT NULL COMMENT '删除标识 0：未删除 1：已删除',
     PRIMARY KEY (`id`),
-    UNIQUE KEY `idx_unique_username_gid` (`gid`,`username`) USING BTREE
+    UNIQUE KEY `idx_unique_username_gid` (`gid`) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE `t_group_7`
@@ -191,7 +194,7 @@ CREATE TABLE `t_group_7`
     `update_time` datetime     DEFAULT NULL COMMENT '修改时间',
     `del_flag`    tinyint(1) DEFAULT NULL COMMENT '删除标识 0：未删除 1：已删除',
     PRIMARY KEY (`id`),
-    UNIQUE KEY `idx_unique_username_gid` (`gid`,`username`) USING BTREE
+    UNIQUE KEY `idx_unique_username_gid` (`gid`) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE `t_group_8`
@@ -205,7 +208,7 @@ CREATE TABLE `t_group_8`
     `update_time` datetime     DEFAULT NULL COMMENT '修改时间',
     `del_flag`    tinyint(1) DEFAULT NULL COMMENT '删除标识 0：未删除 1：已删除',
     PRIMARY KEY (`id`),
-    UNIQUE KEY `idx_unique_username_gid` (`gid`,`username`) USING BTREE
+    UNIQUE KEY `idx_unique_username_gid` (`gid`) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE `t_group_9`
@@ -219,9 +222,20 @@ CREATE TABLE `t_group_9`
     `update_time` datetime     DEFAULT NULL COMMENT '修改时间',
     `del_flag`    tinyint(1) DEFAULT NULL COMMENT '删除标识 0：未删除 1：已删除',
     PRIMARY KEY (`id`),
-    UNIQUE KEY `idx_unique_username_gid` (`gid`,`username`) USING BTREE
+    UNIQUE KEY `idx_unique_username_gid` (`gid`) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+CREATE TABLE `t_group_unique`
+(
+    `id` bigint(20) NOT NULL AUTO_INCREMENT COMMENT 'ID',
+    `gid` varchar(32) DEFAULT NULL COMMENT '分组标识',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `idx_unique_gid` (`gid`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- link表以gid作为分片key，full_short_url+del_time作为unique key
+-- 但是不同组的link可能会被分到不同的表中，unique key无法保证短链接唯一
+-- 因此额外引入goto表
 CREATE TABLE `t_link_0`
 (
     `id`              bigint(20) NOT NULL AUTO_INCREMENT COMMENT 'ID',
@@ -638,6 +652,9 @@ CREATE TABLE `t_link_9`
     UNIQUE KEY `idx_unique_full-short-url` (`full_short_url`,`del_time`) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- goto表，以full_short_url作为分片key
+-- 作为路由表，实现gid->以full_short_url作为分片key的映射
+-- 同时对其添加unique key，保证不同分组下的短链接全局唯一
 CREATE TABLE `t_link_goto_0`
 (
     `id`             bigint(20) NOT NULL AUTO_INCREMENT COMMENT 'ID',

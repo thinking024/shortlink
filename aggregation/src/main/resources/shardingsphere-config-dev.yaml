@@ -2,7 +2,7 @@ dataSources:
   ds_0:
     dataSourceClassName: com.zaxxer.hikari.HikariDataSource
     driverClassName: com.mysql.cj.jdbc.Driver
-    jdbcUrl: jdbc:mysql://127.0.0.1:3306/link?useUnicode=true&characterEncoding=UTF-8&rewriteBatchedStatements=true&allowMultiQueries=true&serverTimezone=Asia/Shanghai
+    jdbcUrl: jdbc:mysql://127.0.0.1:3306/link?useUnicode=true&characterEncoding=UTF-8&rewriteBatchedStatements=true&allowMultiQueries=true&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=True
     username: root
     password: 123456
 
@@ -28,7 +28,7 @@ rules:
         actualDataNodes: ds_0.t_link_${0..15}
         tableStrategy:
           standard:
-            # 以链接分组作为分片key，因此业务中常常查询某个分组下的所有短链接
+            # 以链接分组作为分片key，因为业务中常常查询某个分组下的所有短链接
             shardingColumn: gid
             shardingAlgorithmName: link_table_hash_mod
       t_link_goto:
@@ -51,10 +51,6 @@ rules:
         props:
           sharding-count: 16
       link_goto_table_hash_mod:
-        type: HASH_MOD
-        props:
-          sharding-count: 16
-      link_stats_today_hash_mod:
         type: HASH_MOD
         props:
           sharding-count: 16

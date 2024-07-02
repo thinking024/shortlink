@@ -94,6 +94,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
             throw new ClientException(USER_NAME_EXIST);
         }
         RLock lock = redissonClient.getLock(LOCK_USER_REGISTER_KEY + requestParam.getUsername());
+
+        // tryLock尝试获取锁，如果没获取到，就代表这个请求比其他人慢了，已经有人抢先注册了用户名，直接返回
         if (!lock.tryLock()) {
             throw new ClientException(USER_NAME_EXIST);
         }
@@ -102,8 +104,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
             if (inserted < 1) {
                 throw new ClientException(USER_SAVE_ERROR);
             }
-            userRegisterCachePenetrationBloomFilter.add(requestParam.getUsername());
+            // 先创建分组，再写入布隆过滤器，万一失败，db还能回滚，但是布隆过滤器不能回滚
             groupService.saveGroup(requestParam.getUsername(), "默认分组");
+            userRegisterCachePenetrationBloomFilter.add(requestParam.getUsername());
         } catch (DuplicateKeyException ex) {
             throw new ClientException(USER_EXIST);
         } finally {

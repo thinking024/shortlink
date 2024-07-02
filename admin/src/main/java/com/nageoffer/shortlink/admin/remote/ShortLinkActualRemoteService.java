@@ -19,6 +19,7 @@ package com.nageoffer.shortlink.admin.remote;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.nageoffer.shortlink.admin.common.convention.result.Result;
+import com.nageoffer.shortlink.admin.config.OpenFeignConfiguration;
 import com.nageoffer.shortlink.admin.dto.req.RecycleBinRecoverReqDTO;
 import com.nageoffer.shortlink.admin.dto.req.RecycleBinRemoveReqDTO;
 import com.nageoffer.shortlink.admin.dto.req.RecycleBinSaveReqDTO;
@@ -45,7 +46,11 @@ import java.util.List;
  * 通过spring cloud的FeignClient实现admin项目远程调用project中的ShortLinkService
  * 实际上干的事跟ShortLinkService一样，只是通过远程调用解耦合管理后台和项目中台
  */
-@FeignClient(value = "short-link-project", url = "${aggregation.remote-url:}")
+@FeignClient(
+        value = "short-link-project",
+        url = "${aggregation.remote-url:}",
+        configuration = OpenFeignConfiguration.class
+)
 public interface ShortLinkActualRemoteService {
 
     /**

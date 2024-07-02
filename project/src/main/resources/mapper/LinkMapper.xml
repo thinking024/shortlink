@@ -19,7 +19,9 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.nageoffer.shortlink.project.dao.mapper.ShortLinkMapper">
 
-    <!-- 自增短链接访问次数 -->
+    <!-- 自增短链接访问次数
+    虽然监控表不涉及gid，但是link表是按gid分片的，能更快定位到分片后所在的表，避免对link全表扫描
+    -->
     <update id="incrementStats">
         UPDATE t_link
         SET total_pv  = total_pv + #{totalPv},
