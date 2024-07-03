@@ -58,10 +58,13 @@ public class TokenValidateGatewayFilterFactory extends AbstractGatewayFilterFact
             ServerHttpRequest request = exchange.getRequest();
             String requestPath = request.getPath().toString();
             String requestMethod = request.getMethod().name();
+
             if (!isPathInWhiteList(requestPath, requestMethod, config.getWhitePathList())) {
                 String username = request.getHeaders().getFirst("username");
                 String token = request.getHeaders().getFirst("token");
                 Object userInfo;
+
+                // 用户信息都对，正常放行
                 if (StringUtils.hasText(username) && StringUtils.hasText(token) && (userInfo = stringRedisTemplate.opsForHash().get("short-link:login:" + username, token)) != null) {
                     JSONObject userInfoJsonObject = JSON.parseObject(userInfo.toString());
                     ServerHttpRequest.Builder builder = exchange.getRequest().mutate().headers(httpHeaders -> {
@@ -70,6 +73,8 @@ public class TokenValidateGatewayFilterFactory extends AbstractGatewayFilterFact
                     });
                     return chain.filter(exchange.mutate().request(builder.build()).build());
                 }
+
+                // 未授权
                 ServerHttpResponse response = exchange.getResponse();
                 response.setStatusCode(HttpStatus.UNAUTHORIZED);
                 return response.writeWith(Mono.fromSupplier(() -> {
