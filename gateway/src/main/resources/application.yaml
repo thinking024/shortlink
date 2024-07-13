@@ -4,8 +4,8 @@ spring:
   application:
     name: short-link-gateway
   profiles:
-    active: aggregation
-    # active: dev
+    active: aggregation # 聚合模式：使用gateway/application-aggregation.yaml中的配置
+    # active: dev  # 微服务模式：使用gateway/application-dev.yaml中的配置
   data:
     redis:
       host: 127.0.0.1

@@ -3,6 +3,7 @@ spring:
     gateway:
       routes:
         - id: short-link-admin
+          # 分别走short-link-admin（见admin的yaml文件）项目
           uri: lb://short-link-admin/api/short-link/admin/**
           predicates:
             - Path=/api/short-link/admin/**
@@ -14,6 +15,7 @@ spring:
                   - /api/short-link/admin/v1/user/has-username
 
         - id: short-link-project
+          # 分别走short-link-project（见project的yaml文件）项目
           uri: lb://short-link-project/api/short-link/**
           predicates:
             - Path=/api/short-link/**

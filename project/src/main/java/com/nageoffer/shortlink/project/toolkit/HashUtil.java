@@ -49,8 +49,9 @@ public class HashUtil {
     }
 
     public static String hashToBase62(String str) {
-        // 生成32位的hash值
+        // 生成32位的二进制hash值，转为10进制数
         int i = MurmurHash.hash32(str);
+        // 解决数字上溢
         long num = i < 0 ? Integer.MAX_VALUE - (long) i : i;
         // 将十进制数转为62进制，缩短链接的长度
         return convertDecToBase62(num);

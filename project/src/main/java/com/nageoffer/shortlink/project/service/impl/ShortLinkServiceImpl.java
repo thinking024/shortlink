@@ -428,7 +428,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
 
         // 1. 从redis中取出短链接url对应的原始url （以String类型存储在redis中）
         String originalLink = stringRedisTemplate.opsForValue().get(String.format(GOTO_SHORT_LINK_KEY, fullShortUrl));
-        // 在redis中存在，redis中对应key的有效期就是此链接的有效期，所有不用验证是否过期，直接返回
+        // 在redis中存在，redis中对应key的有效期就是此链接的有效期，不用验证是否过期，直接返回
         if (StrUtil.isNotBlank(originalLink)) {
             shortLinkStats(buildLinkStatsRecordAndSetUser(fullShortUrl, request, response)); // 访问统计
             ((HttpServletResponse) response).sendRedirect(originalLink);
@@ -481,7 +481,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
                     .eq(ShortLinkGotoDO::getFullShortUrl, fullShortUrl);
             ShortLinkGotoDO shortLinkGotoDO = shortLinkGotoMapper.selectOne(linkGotoQueryWrapper);
 
-            // 不存在，同时把它放入redis的空缓存，同时返回404
+            // 不存在，同时把它放入redis的空缓存（expire=30min），同时返回404
             if (shortLinkGotoDO == null) {
                 stringRedisTemplate.opsForValue()
                         .set(String.format(GOTO_IS_NULL_SHORT_LINK_KEY, fullShortUrl), "-", 30, TimeUnit.MINUTES);

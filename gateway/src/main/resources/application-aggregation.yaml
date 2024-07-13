@@ -3,6 +3,7 @@ spring:
     gateway:
       routes:
         - id: short-link-admin-aggregation
+          # 聚合模式下都是走short-link-aggregation-thinking（见aggregation的yaml文件）项目
           uri: lb://short-link-aggregation-thinking/api/short-link/admin/**
           predicates:
             - Path=/api/short-link/admin/**

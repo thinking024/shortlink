@@ -96,8 +96,8 @@ public class ShortLinkStatsSaveConsumer implements StreamListener<String, MapRec
     // 接收到消息后的处理方式
     @Override
     public void onMessage(MapRecord<String, String, String> message) {
-        String stream = message.getStream(); // stream key
-        RecordId id = message.getId(); // message中的k-v
+        String stream = message.getStream(); // stream的key名称
+        RecordId id = message.getId(); // message在steam中的id
         // 消息已被消费过
         if (messageQueueIdempotentHandler.isMessageBeingConsumed(id.toString())) {
             // 消息已完成
@@ -106,17 +106,20 @@ public class ShortLinkStatsSaveConsumer implements StreamListener<String, MapRec
             }
             // 消息未完成，代表之前有人尝试消费过，出了问题没执行完成，但是又没把预消费标识删除
             // 抛出异常，redis不会收到ack，会继续重发消息，让业务能继续流转
+            // todo 但是下一次重发，仍然会进入到这里，是否考虑要在此处删除 预消费标识，以便后续能继续消费这个消息
+            // messageQueueIdempotentHandler.delMessageProcessed(id.toString());
             throw new ServiceException("消息未完成流程，需要消息队列重试");
         }
 
         // 消息未被消费，执行消费逻辑
         try {
-            Map<String, String> producerMap = message.getValue();
+            Map<String, String> producerMap = message.getValue(); // 生产者放入消息队列中的内容
 
             ShortLinkStatsRecordDTO statsRecord = JSON.parseObject(producerMap.get("statsRecord"), ShortLinkStatsRecordDTO.class);
             actualSaveShortLinkStats(statsRecord);
 
             // 消费完毕，从stream消息队列中移除该消息（id）
+            // todo 如果在这一步服务器挂了，没能移除消息，可能会重复消费
             stringRedisTemplate.opsForStream().delete(Objects.requireNonNull(stream), id.getValue());
         } catch (Throwable ex) {
             // 某某某情况宕机了，没完成消费，需要删除 预消费标识，以便后续能继续消费这个消息
