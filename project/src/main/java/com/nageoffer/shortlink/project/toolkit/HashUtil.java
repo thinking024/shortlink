@@ -35,7 +35,7 @@ public class HashUtil {
 
     /**
      * 10进制转62进制字符串
-     * @param num
+     * @param num 10进制数的hash值
      * @return 62进制数，其中每一位对应一个字符
      */
     private static String convertDecToBase62(long num) {
@@ -55,5 +55,7 @@ public class HashUtil {
         long num = i < 0 ? Integer.MAX_VALUE - (long) i : i;
         // 将十进制数转为62进制，缩短链接的长度
         return convertDecToBase62(num);
+
+        // num最大的值为2^31 - 1，最多可以被62除6次变为0，也就是最多变为6位62进制数
     }
 }
