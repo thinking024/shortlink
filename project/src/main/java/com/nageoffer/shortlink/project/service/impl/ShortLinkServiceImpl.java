@@ -359,7 +359,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
         }
 
         // 短链接更新后如何保障缓存和数据库一致性？详情查看：https://nageoffer.com/shortlink/question
-        // 取出的短链接，与前端传入的短链接必须一致 包括：短链接的有效期、短链接的原始链接
+        // db中取出的旧短链接，与前端传入的新短链接必须一致 包括：短链接的有效期、短链接的原始长链接
         if (!Objects.equals(hasShortLinkDO.getValidDateType(), requestParam.getValidDateType())
                 || !Objects.equals(hasShortLinkDO.getValidDate(), requestParam.getValidDate())
                 || !Objects.equals(hasShortLinkDO.getOriginUrl(), requestParam.getOriginUrl())) {
@@ -367,7 +367,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
             // 否则删除link对应的缓存
             stringRedisTemplate.delete(String.format(GOTO_SHORT_LINK_KEY, requestParam.getFullShortUrl()));
 
-            // DB中的旧数据为非永久，且已过期
+            // DB中的旧链接的有效期为非永久，且已过期
             Date currentDate = new Date();
             if (hasShortLinkDO.getValidDate() != null && hasShortLinkDO.getValidDate().before(currentDate)) {
 
@@ -453,6 +453,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
 
         // 3. 缓存击穿：分布式锁
         // 分布式锁，再进行线程安全的判断，同时也能避免缓存击穿后大量请求打到DB
+        // todo 高并发下，可以改成本地锁
         RLock lock = redissonClient.getLock(String.format(LOCK_GOTO_SHORT_LINK_KEY, fullShortUrl));
         lock.lock();
         try {
