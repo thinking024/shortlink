@@ -52,7 +52,7 @@ public class UserConfiguration {
     @ConditionalOnProperty(name = "short-link.flow-limit.enable", havingValue = "true")
     public FilterRegistrationBean<UserFlowRiskControlFilter> globalUserFlowRiskControlFilter(
             StringRedisTemplate stringRedisTemplate,
-            UserFlowRiskControlConfiguration userFlowRiskControlConfiguration) {
+            UserFlowRiskControlConfigurationProperties userFlowRiskControlConfiguration) {
         FilterRegistrationBean<UserFlowRiskControlFilter> registration = new FilterRegistrationBean<>();
         registration.setFilter(new UserFlowRiskControlFilter(stringRedisTemplate, userFlowRiskControlConfiguration));
         registration.addUrlPatterns("/*");

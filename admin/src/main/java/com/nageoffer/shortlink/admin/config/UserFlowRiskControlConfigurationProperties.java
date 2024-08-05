@@ -28,7 +28,7 @@ import org.springframework.stereotype.Component;
 @Data
 @Component
 @ConfigurationProperties(prefix = "short-link.flow-limit")
-public class UserFlowRiskControlConfiguration {
+public class UserFlowRiskControlConfigurationProperties {
 
     /**
      * 是否开启用户流量风控验证

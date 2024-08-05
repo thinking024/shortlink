@@ -21,7 +21,7 @@ import com.alibaba.fastjson2.JSON;
 import com.google.common.collect.Lists;
 import com.nageoffer.shortlink.admin.common.convention.exception.ClientException;
 import com.nageoffer.shortlink.admin.common.convention.result.Results;
-import com.nageoffer.shortlink.admin.config.UserFlowRiskControlConfiguration;
+import com.nageoffer.shortlink.admin.config.UserFlowRiskControlConfigurationProperties;
 import jakarta.servlet.Filter;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -51,7 +51,7 @@ import static com.nageoffer.shortlink.admin.common.convention.errorcode.BaseErro
 public class UserFlowRiskControlFilter implements Filter {
 
     private final StringRedisTemplate stringRedisTemplate;
-    private final UserFlowRiskControlConfiguration userFlowRiskControlConfiguration;
+    private final UserFlowRiskControlConfigurationProperties userFlowRiskControlConfiguration;
 
     private static final String USER_FLOW_RISK_CONTROL_LUA_SCRIPT_PATH = "lua/user_flow_risk_control.lua";
 

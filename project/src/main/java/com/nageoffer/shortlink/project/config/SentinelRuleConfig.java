@@ -30,8 +30,6 @@ import java.util.List;
  * 初始化限流配置
  * 公众号：马丁玩编程，回复：加群，添加马哥微信（备注：link）获取项目资料
  */
-// component类注解，直接取SentinelRuleConfig作为bean
-// autoconfiguration注解，则是通过bean的方法注解，返回bean对象
 @Component
 public class SentinelRuleConfig implements InitializingBean {
 
