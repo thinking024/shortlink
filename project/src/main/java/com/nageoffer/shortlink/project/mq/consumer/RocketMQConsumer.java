@@ -1,20 +1,3 @@
-/*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package com.nageoffer.shortlink.project.mq.consumer;
 
 import cn.hutool.core.date.DateUtil;
@@ -49,33 +32,30 @@ import com.nageoffer.shortlink.project.dto.biz.ShortLinkStatsRecordDTO;
 import com.nageoffer.shortlink.project.mq.idempotent.MessageQueueIdempotentHandler;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.rocketmq.spring.annotation.RocketMQMessageListener;
+import org.apache.rocketmq.spring.core.RocketMQListener;
 import org.redisson.api.RLock;
 import org.redisson.api.RReadWriteLock;
 import org.redisson.api.RedissonClient;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.redis.connection.stream.MapRecord;
-import org.springframework.data.redis.connection.stream.RecordId;
-import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.data.redis.stream.StreamListener;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Objects;
 
 import static com.nageoffer.shortlink.project.common.constant.RedisKeyConstant.LOCK_GID_UPDATE_KEY;
 import static com.nageoffer.shortlink.project.common.constant.ShortLinkConstant.AMAP_REMOTE_URL;
 
-/**
- * 短链接监控状态保存消息队列消费者
- * 公众号：马丁玩编程，回复：加群，添加马哥微信（备注：link）获取项目资料
- */
+
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class ShortLinkStatsSaveConsumer implements StreamListener<String, MapRecord<String, String, String>> {
+@RocketMQMessageListener(
+        topic = "${rocketmq.producer.topic}",
+        consumerGroup = "${rocketmq.consumer.group}"
+)
+public class RocketMQConsumer implements RocketMQListener<Map<String, String>> {
 
     private final ShortLinkMapper shortLinkMapper;
     private final ShortLinkGotoMapper shortLinkGotoMapper;
@@ -88,49 +68,33 @@ public class ShortLinkStatsSaveConsumer implements StreamListener<String, MapRec
     private final LinkDeviceStatsMapper linkDeviceStatsMapper;
     private final LinkNetworkStatsMapper linkNetworkStatsMapper;
     private final LinkStatsTodayMapper linkStatsTodayMapper;
-    private final StringRedisTemplate stringRedisTemplate;
     private final MessageQueueIdempotentHandler messageQueueIdempotentHandler;
 
     @Value("${short-link.stats.locale.amap-key}")
     private String statsLocaleAmapKey;
 
-    // 接收到消息后的处理方式
     @Override
-    public void onMessage(MapRecord<String, String, String> message) {
-        String stream = message.getStream(); // stream的key名称
-        RecordId id = message.getId(); // message在steam中的id
-        // 消息已被消费过
-        if (messageQueueIdempotentHandler.isMessageBeingConsumed(id.toString())) {
-            // 消息已完成
-            if (messageQueueIdempotentHandler.isAccomplish(id.toString())) {
+    public void onMessage(Map<String, String> producerMap) {
+        String keys = producerMap.get("keys");
+
+        if (messageQueueIdempotentHandler.isMessageBeingConsumed(keys)) {
+            // 判断当前的这个消息流程是否执行完成
+            if (messageQueueIdempotentHandler.isAccomplish(keys)) {
                 return;
             }
-            // 消息未完成，代表之前有人尝试消费过，出了问题没执行完成，但是又没把预消费标识删除
-            // 抛出异常，redis不会收到ack，会继续重发消息，让业务能继续流转
-            // todo 但是下一次重发，仍然会进入到这里，是否考虑要在此处删除 预消费标识，以便后续能继续消费这个消息
-            // messageQueueIdempotentHandler.delMessageProcessed(id.toString());
             throw new ServiceException("消息未完成流程，需要消息队列重试");
         }
 
-        // 消息未被消费，执行消费逻辑
         try {
-            Map<String, String> producerMap = message.getValue(); // 生产者放入消息队列中的内容
-
             ShortLinkStatsRecordDTO statsRecord = JSON.parseObject(producerMap.get("statsRecord"), ShortLinkStatsRecordDTO.class);
             actualSaveShortLinkStats(statsRecord);
-
-            // 消费完毕，从stream消息队列中移除该消息（id）
-            // todo 如果在这一步服务器挂了，没能移除消息，可能会重复消费
-            stringRedisTemplate.opsForStream().delete(Objects.requireNonNull(stream), id.getValue());
         } catch (Throwable ex) {
-            // 某某某情况宕机了，没完成消费，需要删除 预消费标识，以便后续能继续消费这个消息
-            messageQueueIdempotentHandler.delMessageProcessed(id.toString());
             log.error("记录短链接监控消费异常", ex);
+            messageQueueIdempotentHandler.delMessageProcessed(keys);
             throw ex;
         }
 
-        // 消费完毕，设置幂等
-        messageQueueIdempotentHandler.setAccomplish(id.toString());
+        messageQueueIdempotentHandler.setAccomplish(keys);
     }
 
     // todo 此处是否要添加事务保证消息消费的原子性
