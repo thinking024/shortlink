@@ -98,7 +98,7 @@ import static com.nageoffer.shortlink.project.common.constant.RedisKeyConstant.S
 
 /**
  * 短链接接口实现层
- * 公众号：马丁玩编程，回复：加群，添加马哥微信（备注：link）获取项目资料
+
  */
 @Slf4j
 @Service
@@ -119,7 +119,6 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
     @Transactional(rollbackFor = Exception.class)
     @Override
     public ShortLinkCreateRespDTO createShortLink(ShortLinkCreateReqDTO requestParam) {
-        // 短链接接口的并发量有多少？如何测试？详情查看：https://nageoffer.com/shortlink/question
         verificationWhitelist(requestParam.getOriginUrl());
 
         // 此处generateSuffix生成的时候就已经通过布隆过滤器判断
@@ -151,9 +150,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
                 .gid(requestParam.getGid())
                 .build();
         try {
-            // 短链接项目有多少数据？如何解决海量数据存储？详情查看：https://nageoffer.com/shortlink/question
             baseMapper.insert(shortLinkDO);
-            // 短链接数据库分片键是如何考虑的？详情查看：https://nageoffer.com/shortlink/question
             shortLinkGotoMapper.insert(linkGotoDO);
         } catch (DuplicateKeyException ex) { // 数据库中存在重复的短链接，抛出异常
             // 布隆过滤器可以通过redis持久化
@@ -166,7 +163,6 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
             throw new ServiceException(String.format("短链接：%s 生成重复", fullShortUrl));
         }
 
-        // 项目中短链接缓存预热是怎么做的？详情查看：https://nageoffer.com/shortlink/question
         // 生成短链接后插入redis，进行缓存预热
         // redis中的有效期=此链接的有效期
         stringRedisTemplate.opsForValue().set(
@@ -174,7 +170,6 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
                 requestParam.getOriginUrl(),
                 LinkUtil.getLinkCacheValidTime(requestParam.getValidDate()), TimeUnit.MILLISECONDS
         );
-        // 删除短链接后，布隆过滤器如何删除？详情查看：https://nageoffer.com/shortlink/question
         // 插入新的短链接后，同时加入布隆过滤器中
         shortUriCreateCachePenetrationBloomFilter.add(fullShortUrl);
         return ShortLinkCreateRespDTO.builder()
@@ -188,7 +183,6 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
     public ShortLinkCreateRespDTO createShortLinkByLock(ShortLinkCreateReqDTO requestParam) {
         verificationWhitelist(requestParam.getOriginUrl());
         String fullShortUrl;
-        // 为什么说布隆过滤器性能远胜于分布式锁？详情查看：https://nageoffer.com/shortlink/question
         // redisson分布式锁，防止多个请求，恰好生成了相同的短链接
         // 不加锁则会在生成后插入db时抛出唯一索引异常，这时候要再重新生成一次，再去查db，多了一次IO
         RLock lock = redissonClient.getLock(SHORT_LINK_CREATE_LOCK_KEY);
@@ -360,7 +354,6 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
             }
         }
 
-        // 短链接更新后如何保障缓存和数据库一致性？详情查看：https://nageoffer.com/shortlink/question
         // db中取出的旧短链接，与前端传入的新短链接必须一致 包括：短链接的有效期、短链接的原始长链接
         if (!Objects.equals(hasShortLinkDO.getValidDateType(), requestParam.getValidDateType())
                 || !Objects.equals(hasShortLinkDO.getValidDate(), requestParam.getValidDate())
@@ -414,9 +407,6 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
     @SneakyThrows
     @Override
     public void restoreUrl(String shortUri, ServletRequest request, ServletResponse response) {
-        // 短链接接口的并发量有多少？如何测试？详情查看：https://nageoffer.com/shortlink/question
-        // 面试中如何回答短链接是如何跳转长链接？详情查看：https://nageoffer.com/shortlink/question
-
         // 从request中拼接生成完整短链接的url
         String serverName = request.getServerName();
         String serverPort = Optional.of(request.getServerPort())
@@ -426,7 +416,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
                 .orElse("");
         String fullShortUrl = serverName + serverPort + "/" + shortUri;
 
-        // 下面的代码逻辑非常复杂，包含应对缓存穿透+击穿的解决措施
+        // 应对缓存穿透+击穿的解决措施
 
         // 1. 从redis中取出短链接url对应的原始url （以String类型存储在redis中）
         String originalLink = stringRedisTemplate.opsForValue().get(String.format(GOTO_SHORT_LINK_KEY, fullShortUrl));
@@ -611,10 +601,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
             String originUrl = requestParam.getOriginUrl();
             // 原域名后加上UUID避免hash冲突
             originUrl += UUID.randomUUID().toString();
-            // 短链接哈希算法生成冲突问题如何解决？详情查看：https://nageoffer.com/shortlink/question
             shorUri = HashUtil.hashToBase62(originUrl);
-            // 判断短链接是否存在为什么不使用Set结构？详情查看：https://nageoffer.com/shortlink/question
-            // 如果布隆过滤器挂了，里边存的数据全丢失了，怎么恢复呢？详情查看：https://nageoffer.com/shortlink/question
 
             // 同时使用布隆过滤器判断生成的短链接是否已存在
             // 若已存在，则继续循环生成
@@ -635,7 +622,6 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
             }
             String originUrl = requestParam.getOriginUrl();
             originUrl += UUID.randomUUID().toString();
-            // 短链接哈希算法生成冲突问题如何解决？详情查看：https://nageoffer.com/shortlink/question
             shorUri = HashUtil.hashToBase62(originUrl);
 
             // 生成后去db中查询是否存在重复的
