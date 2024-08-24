@@ -30,9 +30,8 @@ short-link:
   goto-domain:
     white-list: # 短链接跳转白名单，只有原始链接在以下list中的才会跳转，见GotoDomainWhiteListConfiguration
       enable: true
-      names: '拿个offer,知乎,掘金,博客园'
+      names: '知乎,掘金,博客园'
       details:
-        - nageoffer.com
         - zhihu.com
         - juejin.cn
         - cnblogs.com
